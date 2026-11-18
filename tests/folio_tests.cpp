@@ -61,6 +61,12 @@
 #include "translator.h"
 #include "windows.h"
 
+// GIO's headers use `signals` as a struct member, which Qt defines as a
+// keyword.
+#undef signals
+#include <gio/gio.h>
+#define signals Q_SIGNALS
+
 // Puts XDG_DATA_HOME, where the trash and recent files live, in `path` for
 // as long as the returned guard does.
 [[nodiscard]] static auto dataHomeAt(const QString &path)
@@ -4312,6 +4318,31 @@ private slots:
         open.mount(uri, false);
         QVERIFY(failed.wait(2000));
         QVERIFY(!open.busy());
+    }
+
+    void mounterSendsTheDomainAsGiven()
+    {
+        // GVfs asks again on the same operation after a failed login; a
+        // domain cleared in between is sent empty, not as it was before.
+        QTemporaryDir dir;
+        Mounter mounter;
+        mounter.mount(QUrl::fromLocalFile(dir.path()).toString(), false);
+        GMountOperation *operation = mounter.m_operation;
+        QVERIFY(operation);
+        g_object_ref(operation);
+        const auto release = qScopeGuard([&] { g_object_unref(operation); });
+        const auto ask = [&] {
+            g_signal_emit_by_name(operation, "ask-password", "Sign in", "me", "WORK",
+                                  GAskPasswordFlags(G_ASK_PASSWORD_NEED_PASSWORD | G_ASK_PASSWORD_NEED_DOMAIN));
+        };
+        ask();
+        QVERIFY(mounter.asking());
+        QCOMPARE(mounter.domain(), QString("WORK"));
+        mounter.providePassword("me", "wrong", "WORK");
+        QCOMPARE(QString::fromUtf8(g_mount_operation_get_domain(operation)), QString("WORK"));
+        ask();
+        mounter.providePassword("me", "right", "");
+        QVERIFY(QString::fromUtf8(g_mount_operation_get_domain(operation)).isEmpty());
     }
 
     void trashFollowsXdgDataHome()

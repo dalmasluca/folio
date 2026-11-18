@@ -165,7 +165,9 @@ void Mounter::providePassword(const QString &user, const QString &password,
     if (!m_operation || !m_asking)
         return;
     const bool savePermanently = remember && m_canRemember;
-    const bool setDomain = m_needsDomain && !domain.isEmpty();
+    // GVfs asks again on the same operation after a failed login, so a
+    // domain cleared since then is set empty rather than left as it was.
+    const bool setDomain = m_needsDomain;
     setAsking(false);
     g_mount_operation_set_anonymous(m_operation, FALSE);
     if (!user.isEmpty())

@@ -74,6 +74,7 @@ signals:
 private:
     // GIO's C callbacks, in mounter.cpp.
     friend struct MounterCallbacks;
+    friend class FolioTests;
     void setAsking(bool asking);
     void finish();
 
