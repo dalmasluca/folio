@@ -110,7 +110,7 @@ FolioDialog {
                     color: theme.accentForeground
                 }
             }
-            Text {
+            FolioText {
                 text: rememberBox.text
                 color: rememberBox.visualFocus ? theme.brightForeground : theme.foreground
             }
